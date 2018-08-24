@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ecosystem Services - Drinking Water Analysis</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.3/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+	<link rel="stylesheet" href="ecosystem.css" />
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0px;
+            border: 0px;
+            padding: 0px;
+        }
+
+        .container {
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            position: absolute;
+        }
+
+        .header {
+            position: absolute;
+            top: -8px;
+            left: 50px;
+            padding-left: 50px;
+            right: 0;
+            padding: 10px;
+            z-index: 1000;
+        }
+
+        h2 {
+            margin: 10px 0;
+            text-shadow: 0px 0px 5px white;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .icon {
+            width: 25px;
+            height: 25px;
+            transform: translate(-25px, -25px);
+        }
+
+        .leaflet-div-icon {
+            background: none;
+            border: none;
+        }
+
+        #buttons {
+            /*margin-left: 50px;*/
+            /*display: inline-block;*/
+        }
+
+        #buttons div {
+            display: inline-block;
+            margin-right: 1em;
+            margin-bottom: 1em;
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 1px solid black;
+            border-radius: 4px;
+            padding: 4px;
+        }
+
+        #buttons div:hover {
+            background-color: dodgerblue;
+            color: white;
+            cursor: pointer;
+        }
+
+
+
+    </style>
+  </head>
+
+  <body>
+    <div class="header">
+	    <h1>Ecosystem Services</h1>
+        <h2>Drinking Water Analysis</h2>
+        <div id="buttons"></div>    
+     <div class="dropdown">
+          <button class="dropbtn">Water Bodies Quality</button>
+          <div class="dropdown-content">
+            <div onclick="fetchTagData('waterquality_high')">High</div>
+            <div onclick="fetchTagData('waterquality_medium')">Medium</div>
+            <div onclick="fetchTagData('waterquality_low')">Low</div>
+          </div>
+        </div>
+        <div class="dropdown">
+          <button class="dropbtn">Town Water Availability</button>
+          <div class="dropdown-content">
+            <div  onclick="fetchTagData('avail_townhigh')">High</div>
+            <div  onclick="fetchTagData('avail_townmedium')">Medium</div>
+            <div  onclick="fetchTagData('avail_townlow')">Low</div>
+          </div>
+        </div>
+		 <!--<div class="dropdown">
+          <button class="dropbtn">Total Water Availability</button>
+          <div class="dropdown-content">
+            <div  onclick="fetchTagData('avail_high')">High</div>
+            <div  onclick="fetchTagData('avail_medium')">Medium</div>
+            <div  onclick="fetchTagData('avail_low')">Low</div>
+          </div>
+        </div>-->
+        <div class="dropdown">
+          <button class="dropbtn" onclick="fetchTagData('waterbodies')">Reset</button>
+        </div>
+     </div>
+     <div class="container">
+        <div id="map"></div>
+    </div>	 
+    <!-- leaflet -->
+    <script src="https://unpkg.com/leaflet@1.3.3/dist/leaflet.js"></script>
+
+    <!-- Demo setup -->
+    <script>
+
+	var APP_ID = 'vL1txg69g49VIQ2ugm90';
+var APP_CODE = 'YwloGJ2vn2kVemBNNkp4hA';
+
+        var theMap = L.map('map', {maxZoom: 8});
+		//L.TileLayer('./tiles4326/{z}/{x}/{y}.png').addTo(theMap);
+        L.tileLayer('https://2.base.maps.api.here.com/maptile/2.1/maptile/newest/reduced.day/{z}/{x}/{y}/256/png8?app_id='+APP_ID+'&token='+APP_CODE+'&lg=/eng').addTo(theMap);
+		
+        theMap.attributionControl.addAttribution('Flight data via <a href="http://adsbexchange.com/">ADS-B Exchange</a>');
+        theMap.attributionControl.addAttribution('Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Map data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>');
+
+        var townIconMedium = new L.DivIcon({html: '<img class="icon" src="home-icon.png">'});
+		var townIconHigh = new L.DivIcon({html: '<img class="icon" src="home-icon-high.png">'});
+		var townIconLow = new L.DivIcon({html: '<img class="icon" src="home-icon-low.png">'});
+        
+
+
+        // center of Uganda
+
+       //theMap.setView([1.323650,32.358213], 7); 
+	   
+
+      
+		
+		
+
+        var allObjects = [];
+
+        function renderallObjects(data,tag) {
+		    //if(tag=="waterbodies"){
+            allObjects.forEach(function (c) { c.remove(); });
+            allObjects = [];
+			//}
+			
+			
+	
+         var coordinatesBuf;
+		 var polyBuf;
+		 //alert(data.length)
+         data.forEach(function (feature) {
+			
+				if(feature.geometry.type=="Polygon" || feature.geometry.type=="MultiPolygon"){
+				
+				
+				var poly=L.polyline(lngLatArrayToLatLng(feature.geometry.coordinates))
+				polyBuf=poly
+				if(tag.includes("waterquality_")){
+					if(tag=="waterquality_high"){
+						poly.setStyle({
+				weight: 2,
+				opacity: 1,
+				color: 'green',  //Outline color
+						})
+						}
+						if(tag=="waterquality_medium"){
+						poly.setStyle({
+				weight: 2,
+				opacity: 1,
+				color: 'orange',  //Outline color
+						})
+						}
+						if(tag=="waterquality_low"){
+						poly.setStyle({
+				weight: 2,
+				opacity: 1,
+				color: 'brown',  //Outline color
+						})
+						}
+				}
+				
+				poly.addTo(theMap);
+				if(tag.includes("avail_")){
+					poly.bindTooltip('<h3>Water Availability</h3><ul><li>Availability ((gallons per day): ' + feature.properties.WaterAvail + '</li></ul>');
+				}
+				if(tag.includes("waterquality_")){
+					poly.bindTooltip('<h3>Water Quality</h3><ul><li>Quality Index: ' + feature.properties.Water_Quality + '</li></ul>');
+				}			 
+				
+				
+				allObjects.push(poly);
+				
+				}
+				if(feature.geometry.type=="Point"){
+				coordinatesBuf=[feature.geometry.coordinates[1], feature.geometry.coordinates[0]]
+				//alert(coordinatesBuf)
+				var townIcon;
+				if(tag=="avail_townhigh"){
+				townIcon=townIconHigh
+				}
+				if(tag=="avail_townmedium"){
+				townIcon=townIconMedium
+				}
+				if(tag=="avail_townlow"){
+				townIcon=townIconLow
+				}
+				
+				
+				
+				var c = L.marker(
+                    [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
+                    {
+                        icon: townIcon
+                    });
+                c.addTo(theMap);
+				c.bindTooltip('<h3>Water Availability</h3><ul><li>Availability ((gallons per day): ' + feature.properties.WaterAvail + '</li><li>Coverage Percentage Per Family: ' + feature.properties.Water_coverage + '</li></ul>');
+				allObjects.push(c);
+				}
+				
+
+					
+                
+            });
+			if(polyBuf != null)
+			{				
+			theMap.fitBounds(polyBuf.getBounds());
+			}
+			if(coordinatesBuf != null)
+			{				
+				theMap.panTo(coordinatesBuf,7);
+			}
+        }
+
+ 
+function lngLatArrayToLatLng(arr) {
+ var reversed = arr.map(function reverse(item) {
+    return Array.isArray(item) && Array.isArray(item[0]) 
+               ? item.map(reverse) 
+               : item.reverse();
+});
+		return reversed;
+}
+
+
+        function fetchTagData(tag) {
+            var url = 'https://xyz.api.here.com/hub/spaces/Z6djkHZL/search?access_token=kXcVh-Rn9QReOg14lcrDuw&tags=' + tag;
+			//window.alert("URL:"+url)
+            fetch(url).then(resp => resp.json()).then(data => {
+                renderallObjects(data.features,tag);
+            });
+
+           theMap.setView([1.323650,32.358213], 8); 
+        }
+function polystyle(feature) {
+    return {
+        fillColor: 'blue',
+        weight: 2,
+        opacity: 1,
+        color: 'white',  //Outline color
+        fillOpacity: 0.7
+    };
+}		
+
+       fetchTagData('waterbodies');
+
+
+	   
+    </script>
+
+  </body>
+</html>
